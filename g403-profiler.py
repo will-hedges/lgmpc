@@ -26,13 +26,12 @@ class Mouse:
 
     def __init__(self):
         self.alias, self.model = get_mouse_alias_and_model()
-        self.root_dir = Path(__file__).parent
-        print(self.root_dir)
-        self.pickle_file = Path(self.root_dir / f"{self.model}-pickle")
+        self.profile_dir = Path(__file__).parent / f"{self.model}-profiles"
+        self.pickle_file = Path(self.profile_dir / f"{self.model}-pickle")
         return
 
     def get_all_profiles(self):
-        profile_glob = sorted(self.root_dir.glob("*.sh"))
+        profile_glob = sorted(self.profile_dir.glob("*.sh"))
         profiles = [Path.absolute(Path(profile)) for profile in profile_glob]
         self.profiles = profiles
         return
@@ -42,7 +41,7 @@ class Mouse:
             with open(self.pickle_file, "rb") as pf:
                 current_profile = pickle.load(pf)
         except FileNotFoundError:
-            current_profile = self.root_dir / f"{self.model}-default.sh"
+            current_profile = self.profile_dir / f"{self.model}-default.sh"
             with open(self.pickle_file, "wb") as pf:
                 pickle.dump(current_profile, pf)
 
