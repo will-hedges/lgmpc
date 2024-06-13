@@ -50,11 +50,6 @@ def get_button_count(alias):
 
 def main():
     mouse = Mouse()
-    mouse.get_all_profiles()
-    # TODO only r/w once - so read pickle, cycle profile, dump pickle in one WITH block
-    mouse.load_profile_from_pickle()
-    mouse.cycle_profile()
-    mouse.dump_profile_to_pickle()
     return
 
 

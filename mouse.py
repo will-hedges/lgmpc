@@ -35,8 +35,13 @@ class Mouse:
         return
 
     def get_all_profiles(self):
+        """
+        Creates a list of all the the .sh profile scripts within self.folder
+            and assigns them to self.profiles
+        """
         profile_glob = sorted(self.folder.glob("*.sh"))
-        # if no profiles, create one with the current mouse settings, and save it to default.sh
+        # TODO if no profiles, create one with the current mouse settings
+        #   and save it to default.sh
         profiles = [Path(profile) for profile in profile_glob]
         self.profiles = profiles
         return
@@ -103,6 +108,9 @@ class Mouse:
         return
 
     def save_pickle(self):
+        return
+
+    def cycle_profile(self):
         return
 
 

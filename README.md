@@ -1,2 +1,2 @@
-# g403-profiler
-Python script for managing and cycling ratbagctl profiles for my Logitech G403 mouse on Linux
+# Logitech G Mouse Profiler (lgmp)
+Python script for managing and cycling ratbagctl profiles for Logitech G mice on Linux
