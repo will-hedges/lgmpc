@@ -6,18 +6,7 @@ import pickle
 import re
 import subprocess
 
-
-def get_bash_stdout(cmd_str):
-    """
-    Runs a bash command and returns the decoded standard output
-        Params:
-            cmd_str (str): a bash command, ex. "ratbagctl list"
-        Returns:
-            rbc_out (str): the decoded standard output (stdout) of cmd_str
-    """
-    cmd_lst = [c.strip() for c in cmd_str.split(" ")]
-    rbc_out = subprocess.run(cmd_lst, stdout=subprocess.PIPE).stdout.decode()
-    return rbc_out
+import lgmp
 
 
 def get_mouse_alias_and_model():
@@ -28,7 +17,7 @@ def get_mouse_alias_and_model():
             alias (str): the ratbagctl name of the mouse, ex. "sleeping-puppy"
             model (str): the model short name/number of the mouse, ex. "G403"
     """
-    rbc_out = get_bash_stdout("ratbagctl list")
+    rbc_out = lgmp.get_bash_stdout("ratbagctl list")
     mouse_re = re.compile(r"([a-z-]+):.*(G\d{3}|G Pro).*")
     mouse_mo = mouse_re.match(rbc_out)
     alias = mouse_mo.group(1).lower()
@@ -44,7 +33,7 @@ def get_button_count(alias):
         Returns:
             btn_ct (int): the number of buttons the mouse has
     """
-    btn_ct = int(get_bash_stdout(f"ratbagctl {alias} button count"))
+    btn_ct = int(lgmp.get_bash_stdout(f"ratbagctl {alias} button count"))
     return btn_ct
 
 
@@ -141,64 +130,6 @@ class Mouse:
         # self.current_profile = load_pickled_profile(self.folder)
         self.profiles = get_all_shell_scripts_in(self.folder)
         return
-
-    def read_active_profile(self):
-        """
-        Creates a dictionary from the current mouse settings
-
-            Returns:
-                mouse_profile (dict) TODO
-        """
-        report_rate = int(get_bash_stdout(f"ratbagctl {self.alias} rate get"))
-
-        resolutions = []
-        res_idx = 0
-        res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
-        while True:
-            res_out = get_bash_stdout(
-                f"ratbagctl {self.alias} resolution {res_idx} get"
-            )
-            res_mo = res_re.match(res_out)
-            if res_mo:
-                resolutions.append(res_mo.group(1))
-                res_idx += 1
-            else:
-                break
-
-        buttons = []
-        btn_re = re.compile(r".*'(.*)'.*")
-        for i in range(self.button_count):
-            btn_out = get_bash_stdout(f"ratbagctl {self.alias} button {i} get").strip()
-            btn_mo = btn_re.match(btn_out)
-            buttons.append(
-                btn_mo.group(1)
-                .replace("↕", "KEY_")
-                .replace("↓", "+KEY_")
-                .replace("↑", "-KEY_")
-            )
-
-        leds = []
-        led_idx = 0
-        led_re = re.compile(
-            r"LED: (\d), depth: rgb, mode: (on|off|cycle|breathing), color: (\w{6})|, duration: (\d{,5}), brightness: (\d{,3})"
-        )
-        while True:
-            led_out = get_bash_stdout(f"ratbagctl {self.alias} led {led_idx} get")
-            led_mo = led_re.match(led_out)
-            if led_mo:
-                leds.append(led_mo.groups())
-                led_idx += 1
-            else:
-                break
-
-        mouse_profile = {
-            "report_rate": report_rate,
-            "resolutions": resolutions,
-            "buttons": buttons,
-            "leds": leds,
-        }
-
-        return mouse_profile
 
     def cycle_profile(self):
         """
