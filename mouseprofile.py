@@ -13,19 +13,24 @@ class MouseProfile:
     """
     TODO
         Attrs:
-            report_rate (int): TODO
-            resolutions (list(int)): TODO
-            buttons (list(str)): TODO
+            mouse (Mouse): Mouse class from mouse.py
+            name (str): the name of the profile, ex. "Default" or "Hades"
+            report_rate (int): polling rate, in Hz
+            resolutions (list(int)): list of DPI resolutions to set
+            default_resolution (int): index of the default DPI
+            buttons (list(str)): list of all the buttons and macros
+            leds (list(dict)): list of dicts containing led properties
+            sh_script (str): a big f-string that can be used to set the profile
     """
 
-    def __init__(self, name, mouse):
+    def __init__(self, name="Default", mouse=Mouse()):
         self.mouse = mouse
         self.name = name
         # generate attrs using the current mouse settings
         report_rate = int(
             lgmp.get_bash_stdout(f"ratbagctl {self.mouse.alias} rate get")
         )
-
+        # iterate over all the set resolutions and get them into a list
         resolutions = []
         res_idx = 0
         res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
@@ -41,12 +46,15 @@ class MouseProfile:
                 break
 
         # ratbagctl uses the resolution index for the default dpi
-        # so 'default_resolution' here is an index, not a dpi
+        #   so 'default_resolution' here is an index, not a dpi
         default_resolution = int(
             lgmp.get_bash_stdout(f"ratbagctl {self.mouse.alias} resolution default get")
         )
         default_dpi = resolutions[default_resolution]
 
+        # iterate over all the set buttons and get them into a list
+        #   use .replace() to get 'command-ified' keypresses
+        #       NOTE that macro waits are written like 't300' (wait 300ms)
         buttons = []
         btn_re = re.compile(r".*'(.*)'.*")
         for i in range(self.mouse.button_count):
@@ -61,6 +69,8 @@ class MouseProfile:
                 .replace("↑", "-KEY_")
             )
 
+        # iterate over all the set LEDs and get them into a list of dicts
+        #   we will later iterate over each dict and only set k-v pairs that exist
         leds = []
         led_idx = 0
         led_re = re.compile(
@@ -84,9 +94,11 @@ class MouseProfile:
             else:
                 break
 
-        # generate the .sh script
+        ### GENERATE THE SHELL SCRIPT ###
+        # all the symbols here can throw errors so we'll use a raw string
         raw_device_print = r" '{print $2}' | awk '{$1=$1};1')"
 
+        # join up all the lines of the different sections
         res_lines = []
         for idx, dpi in enumerate(resolutions):
             res_lines.append(
@@ -98,6 +110,7 @@ class MouseProfile:
         for idx, led in enumerate(leds):
             led_line = f'ratbagctl "$device" led {idx} set'
             for key, value in led.items():
+                # we only want to set LED properties that exist
                 if value:
                     led_line += f" {key} {value}"
             led_line += " --nocommit"
@@ -110,13 +123,15 @@ class MouseProfile:
             if btn.startswith("button") is False:
                 btn_line += f"macro "
             btn_line += btn
+            # --nocommit waits to write all the properties to the mouse
+            #   so the last line should NOT have '--nocommit'
             if not btn == buttons[-1]:
                 btn_line += " --nocommit"
             btn_lines.append(btn_line)
         joined_btn_lines = "\n".join(btn_lines)
 
         sh_script = f"""#!/bin/bash
-# {name}.sh - {name} mouse profile for Logitech {self.mouse.model}
+# {name}.sh - {name} mouse profile for Logitech {self.mouse.model.upper()}
 
 profile_name="{name}"
 
@@ -135,9 +150,9 @@ ratbagctl "$device" dpi set {default_dpi} --nocommit
 
 {joined_btn_lines}
 
-echo "$profile_name profile set for $device"    
+echo "$profile_name profile set for $device"
 """
-
+        # setting all the init attrs here at the end for ease of reading
         self.report_rate = report_rate
         self.resolutions = resolutions
         self.default_resolution = default_resolution
@@ -146,8 +161,8 @@ echo "$profile_name profile set for $device"
         self.sh_script = sh_script
         return
 
-    def write_to_sh_script(self):
-        sh_script_path = Path(self.mouse.folder / f"{self.name}.sh")
+    def write_sh_to_file(self):
+        sh_script_path = Path(self.mouse.folder / f"{self.name.lower()}.sh")
         with open(sh_script_path, "w") as fo:
             fo.write(self.sh_script)
         # give the script execute permissions
@@ -156,8 +171,8 @@ echo "$profile_name profile set for $device"
 
 
 def main():
-    mouseProfile = MouseProfile("Default", Mouse())
-    mouseProfile.write_to_sh_script()
+    default_profile = MouseProfile()
+    default_profile.write_sh_to_file()
     return
 
 
