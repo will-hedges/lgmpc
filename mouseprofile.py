@@ -164,13 +164,3 @@ echo "$profile_name profile set for $device"
         # give the script execute permissions
         subprocess.run(["chmod", "a+x", sh_script_path])
         return
-
-
-def main():
-    default_profile = MouseProfile()
-    default_profile.write_sh_to_file()
-    return
-
-
-if __name__ == "__main__":
-    main()
