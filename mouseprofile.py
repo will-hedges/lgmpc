@@ -4,6 +4,7 @@
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 from utils import get_bash_stdout
 from mouse import Mouse
@@ -131,21 +132,28 @@ class MouseProfile:
 
 profile_name="{name}"
 
+# name the device
 device=$(ratbagctl list | grep -E 'G403' | awk -F: {raw_device_print}
 
+# set the active profile (0 is default)
 ratbagctl "$device" profile active set 0 --nocommit
 
+# set the polling rate
 ratbagctl "$device" rate set {report_rate} --nocommit
 
+# set resolutions, as well as default resolution and active dpi
 {joined_res_lines}
 
 ratbagctl "$device" resolution default set {default_resolution} --nocommit
 ratbagctl "$device" dpi set {default_dpi} --nocommit
 
+# set all the LEDs
 {joined_led_lines}
 
+# set all the buttons
 {joined_btn_lines}
 
+# if running from bash, show a "success" line
 echo "$profile_name profile set for $device"
 """
         # setting all the init attrs here at the end for ease of reading
@@ -163,4 +171,35 @@ echo "$profile_name profile set for $device"
             fo.write(self.sh_script)
         # give the script execute permissions
         subprocess.run(["chmod", "a+x", sh_script_path])
+        self.sh_script_path = sh_script_path
         return
+
+
+def main():
+    """
+    initialize a MouseProfile so we can do two things:
+        1. initialize a Mouse (gets the alias and model dir from __init__)
+        2. creates a default.sh in the model dir (with the write_sh_to_file method)
+
+    so for users running this script, we want to do both of those things
+        for the currently connected mouse
+    """
+
+    # look to see if the user named the profile with sys.argv
+    #   otherwise, set up a "Default" profile with the existing mouse settings
+    try:
+        mp = MouseProfile(name=sys.argv[1])
+    except IndexError:
+        mp = MouseProfile()
+    mp.write_sh_to_file()
+
+    print(f"LGMP: Successfully created {mp.name} profile at {mp.sh_script_path}")
+    print(
+        f"LGMP: You can now set this profile to your mouse with 'sh {mp.sh_script_path}'"
+    )
+    print(f"LGMP:     or cycle through profiles with 'python3 lgmp.py'")
+    return
+
+
+if __name__ == "__main__":
+    main()

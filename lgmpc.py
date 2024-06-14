@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# lgmp.py - Logitech G Mouse Profiler
+# lgmpc.py - Logitech G Mouse Profile Cycler
 #   a script to cycle Logitech G mouse profiles with ratbagctl
 
 
