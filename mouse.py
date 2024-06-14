@@ -6,7 +6,7 @@ import pickle
 import re
 import subprocess
 
-import lgmp
+from utils import get_bash_stdout
 
 
 def get_mouse_alias_and_model():
@@ -17,7 +17,7 @@ def get_mouse_alias_and_model():
             alias (str): the ratbagctl name of the mouse, ex. "sleeping-puppy"
             model (str): the model short name/number of the mouse, ex. "G403"
     """
-    rbc_out = lgmp.get_bash_stdout("ratbagctl list")
+    rbc_out = get_bash_stdout("ratbagctl list")
     mouse_re = re.compile(r"([a-z-]+):.*(G\d{3}|G Pro).*")
     mouse_mo = mouse_re.match(rbc_out)
     alias = mouse_mo.group(1).lower()
@@ -33,7 +33,7 @@ def get_button_count(alias):
         Returns:
             btn_ct (int): the number of buttons the mouse has
     """
-    btn_ct = int(lgmp.get_bash_stdout(f"ratbagctl {alias} button count"))
+    btn_ct = int(get_bash_stdout(f"ratbagctl {alias} button count"))
     return btn_ct
 
 

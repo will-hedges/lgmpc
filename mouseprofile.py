@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 
-import lgmp
+from utils import get_bash_stdout
 from mouse import Mouse
 
 
@@ -27,15 +27,13 @@ class MouseProfile:
         self.mouse = mouse
         self.name = name
         # generate attrs using the current mouse settings
-        report_rate = int(
-            lgmp.get_bash_stdout(f"ratbagctl {self.mouse.alias} rate get")
-        )
+        report_rate = int(get_bash_stdout(f"ratbagctl {self.mouse.alias} rate get"))
         # iterate over all the set resolutions and get them into a list
         resolutions = []
         res_idx = 0
         res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
         while True:
-            res_out = lgmp.get_bash_stdout(
+            res_out = get_bash_stdout(
                 f"ratbagctl {self.mouse.alias} resolution {res_idx} get"
             )
             res_mo = res_re.match(res_out)
@@ -48,7 +46,7 @@ class MouseProfile:
         # ratbagctl uses the resolution index for the default dpi
         #   so 'default_resolution' here is an index, not a dpi
         default_resolution = int(
-            lgmp.get_bash_stdout(f"ratbagctl {self.mouse.alias} resolution default get")
+            get_bash_stdout(f"ratbagctl {self.mouse.alias} resolution default get")
         )
         default_dpi = resolutions[default_resolution]
 
@@ -58,7 +56,7 @@ class MouseProfile:
         buttons = []
         btn_re = re.compile(r".*'(.*)'.*")
         for i in range(self.mouse.button_count):
-            btn_out = lgmp.get_bash_stdout(
+            btn_out = get_bash_stdout(
                 f"ratbagctl {self.mouse.alias} button {i} get"
             ).strip()
             btn_mo = btn_re.match(btn_out)
@@ -77,9 +75,7 @@ class MouseProfile:
             r"LED: (\d), depth: rgb, mode: (on|off|cycle|breathing), color: (\w{6})|, duration: (\d{,5}), brightness: (\d{,3})"
         )
         while True:
-            led_out = lgmp.get_bash_stdout(
-                f"ratbagctl {self.mouse.alias} led {led_idx} get"
-            )
+            led_out = get_bash_stdout(f"ratbagctl {self.mouse.alias} led {led_idx} get")
             led_mo = led_re.match(led_out)
             if led_mo:
                 leds.append(
