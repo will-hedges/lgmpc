@@ -51,25 +51,9 @@ def get_all_shell_scripts_in(fp):
     return profiles
 
 
-def generate_default_sh(script_path, profile_dict):
-    """
-    Generates the text/string for the default.sh mouse profile and writes to file
-        Params:
-            script_path (Path): the Path to default.sh for the mouse model
-            profile_dict (dict): a dict containing the profile key-value pairs
-    """
-    # create 'default.sh' with touch
-    # generate the actual profile script with read_active_profile
-    # write the script to file
-    # give the new .sh file a+x permissions
-    # subprocess.run(["chmod", "a+x", current_profile])
-    # return the fp
-    return
-
-
 # NOTE json may be a better option for serialization here, as you could go
 #   in and edit it manually rather than relying on pickle and rb/wb
-def load_pickled_profile(fp):
+def get_pickled_profile(fp):
     """
     Pulls in the path of the last set profile from the pickle file
         or creates a pickle file if it does not already exist
@@ -77,7 +61,7 @@ def load_pickled_profile(fp):
         Params:
             fp (Path): the Path of the mouse model directory
         Returns:
-            current_profile (Path): TODO
+            current_profile (Path): the full path of the last pickled profile .sh
     """
 
     pickle_path = Path(fp / f"{fp.name}.pickle")
@@ -117,7 +101,6 @@ class Mouse:
             profiles (list): a list of Path objects of all the local mouse profile scripts
 
         Methods:
-            read_active_profile TODO
             cycle_profile TODO
     """
 
@@ -127,7 +110,6 @@ class Mouse:
         self.folder = Path(__file__).parent / "models" / self.model
         # if the model's folder doesn't exist, create it
         self.folder.mkdir(parents=True, exist_ok=True)
-        # self.current_profile = load_pickled_profile(self.folder)
         self.profiles = get_all_shell_scripts_in(self.folder)
         return
 
@@ -136,7 +118,7 @@ class Mouse:
         Cycles through and runs the "next" indexed profile shell script
             then saves the current profile to the pickle file
         """
-        current_profile = load_pickled_profile(self.folder)
+        current_profile = get_pickled_profile(self.folder)
         current_idx = self.profiles.index(current_profile)
         try:
             current_profile = self.profiles[current_idx + 1]
