@@ -8,7 +8,10 @@ from mouse import Mouse
 
 def main():
     mouse = Mouse()
-    mouse.cycle_profile()
+    if len(mouse.profiles) < 2:
+        pass
+    else:
+        mouse.cycle_profile()
     return
 
 
