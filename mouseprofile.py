@@ -22,6 +22,7 @@ class MouseProfile:
     """
 
     def __init__(self, name="default"):
+        # NOTE don't set device as an attr because we don't want it in MouseProfile.__dict__
         device = get_mouse_alias_and_model()[0]
         # generate attrs using the current mouse settings
         # TODO get the mouse button count
@@ -93,7 +94,6 @@ class MouseProfile:
                 break
 
         # setting all the init attrs here at the end for ease of reading
-        self.device = device
         self.name = name
         self.report_rate = report_rate
         self.resolutions = resolutions
@@ -103,27 +103,27 @@ class MouseProfile:
         return
 
     def run(self):
+        device = get_mouse_alias_and_model()[0]
+
         commands = []
         # set the polling rate
-        commands.append(
-            f"\nratbagctl --nocommit {self.device} rate set {self.report_rate}"
-        )
+        commands.append(f"\nratbagctl --nocommit {device} rate set {self.report_rate}")
         # set the resolutions
         for idx, dpi in enumerate(self.resolutions):
             commands.append(
-                f"\nratbagctl --nocommit {self.device} resolution {idx} dpi set {dpi}"
+                f"\nratbagctl --nocommit {device} resolution {idx} dpi set {dpi}"
             )
         # set default resolution and dpi
         commands.append(
-            f"\nratbagctl --nocommit {self.device} resolution default set {self.default_resolution}"
+            f"\nratbagctl --nocommit {device} resolution default set {self.default_resolution}"
         )
         commands.append(
-            f"\nratbagctl --nocommit {self.device} dpi set {self.resolutions[self.default_resolution]}"
+            f"\nratbagctl --nocommit {device} dpi set {self.resolutions[self.default_resolution]}"
         )
 
         # set the buttons
         for idx, btn in enumerate(self.buttons):
-            cmd = f"\nratbagctl --nocommit {self.device} button {idx} action set"
+            cmd = f"\nratbagctl --nocommit {device} button {idx} action set"
             if btn.startswith(("-", "+", "KEY", "t")):
                 cmd += " macro "
             cmd += " " + btn
@@ -131,7 +131,7 @@ class MouseProfile:
 
         # set the LEDs
         for idx, led in enumerate(self.leds):
-            cmd = f"\nratbagctl --nocommit {self.device} led {idx} set"
+            cmd = f"\nratbagctl --nocommit {device} led {idx} set"
             for key, value in led.items():
                 if value:
                     cmd += f" {key} {value}"

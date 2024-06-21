@@ -5,6 +5,7 @@
 import argparse
 
 from mouse import Mouse
+from mouseprofile import MouseProfile
 
 
 def main():
@@ -54,8 +55,15 @@ def main():
         print("TODO SET SOME MESSAGE")
         return
 
+    # init mouse
+    mouse = Mouse()
+
     if args.new:
+        mp = MouseProfile()
+        d = mp.__dict__
         # TODO create a new profile with the existing settings
+        # basically, just init a MouseProfile with the current settings
+        # and save it to mouse["profiles"]["<profile_name>"]
         pass
     elif args.show:
         # TODO show the current mouse settings with ratbagctl

@@ -83,8 +83,7 @@ class Mouse:
             model (str): the Logitech model name/number of the mouse
             button_count (int): the number of buttons the mouse has
             folder (Path): the dir containing profile scripts and pickle file for the mouse
-            profiles (list): a list of Path objects of all the local mouse profile scripts
-
+            profiles (dict): a dict of dicts containing the information for each profile
         Methods:
             cycle_profile TODO
     """
@@ -116,16 +115,16 @@ class Mouse:
             # create the file
             model_json_fp.touch()
             # create the "default" profile
-            mp = MouseProfile(alias)
-            # create a dict from the mouse_profile attrs
-            mp_dict = mp.__dict__
+            mp = MouseProfile()
             # create a dict that represents the mouse and the profiles
             mouse_data = {}
             # set the last run profile name as 'default'
             last_profile_name = mp.name
             mouse_data["last_profile_name"] = last_profile_name
-            # initialize a list of profiles with default being the only entry
-            mouse_data["profiles"] = [mp_dict]
+            mouse_data["profiles"] = {}
+            # initialize a dict of profiles with default being the only entry
+            #   the key should be "default"
+            mouse_data["profiles"][mp.name] = mp.__dict__
             # dump the new mouse model data to file
             with open(model_json_fp, "w") as jf:
                 json.dump(mouse_data, jf, indent=2)
@@ -154,3 +153,12 @@ class Mouse:
         json_fp = Path(self.folder / f"{self.model}.pickle")
         save_last_run_profile(json_fp, last_run_profile)
         return
+
+
+def main():
+    mouse = Mouse()
+    return mouse
+
+
+if __name__ == "__main__":
+    main()
