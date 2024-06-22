@@ -4,37 +4,10 @@
 import json
 from pathlib import Path
 import pickle
-import re
 import subprocess
 
 from mouseprofile import MouseProfile
-from utils import get_bash_stdout, get_mouse_alias_and_model
-
-
-def get_button_count(alias):
-    """
-    Gets the number of buttons on the connected mouse
-        Params:
-            alias (str): the ratbagctl short name of the connected mouse
-        Returns:
-            btn_ct (int): the number of buttons the mouse has
-    """
-    btn_ct = int(get_bash_stdout(f"ratbagctl {alias} button count"))
-    return btn_ct
-
-
-def get_all_shell_scripts_in(fp):
-    """
-    Creates a list of all the the .sh scripts within a folder
-
-        Params:
-            fp (Path): the Path of the mouse model
-        Returns:
-            profiles (list(Path)): a list of all Paths in fp with the .sh ext
-    """
-    profile_glob = sorted(fp.glob("*.sh"))
-    profiles = [Path(profile) for profile in profile_glob]
-    return profiles
+from utils import get_mouse_alias_and_model
 
 
 # NOTE json may be a better option for serialization here, as you could go
@@ -72,6 +45,15 @@ def save_last_run_profile(json_fp, profile_name):
     with open(json_fp, "w") as jf:
         pickle.dump(profile_name, jf)
     return
+
+
+def save_status(Mouse):
+    mouse_data = {
+        "last_run_profile": Mouse.last_run_profile,
+        "profiles": Mouse.profiles,
+    }
+    with open(Mouse.model_json, "w") as jf:
+        json.dump(mouse_data, jf, indent=2)
 
 
 class Mouse:
@@ -119,8 +101,8 @@ class Mouse:
             # create a dict that represents the mouse and the profiles
             mouse_data = {}
             # set the last run profile name as 'default'
-            last_profile_name = mp.name
-            mouse_data["last_profile_name"] = last_profile_name
+            last_run_profile = mp.name
+            mouse_data["last_run_profile"] = last_run_profile
             mouse_data["profiles"] = {}
             # initialize a dict of profiles with default being the only entry
             #   the key should be "default"
@@ -131,9 +113,59 @@ class Mouse:
 
         self.alias = alias
         self.model = model
-        self.last_profile_name = mouse_data["last_profile_name"]
+        self.model_json = model_json_fp
+        self.last_run_profile = mouse_data["last_run_profile"]
         self.profiles = mouse_data["profiles"]
         return
+
+    def add_profile(self, profile_name, profile_dict):
+        """
+        Adds a new profile to self.profiles
+        Updates the last run profile
+        And saves the current status to the model json
+        """
+        # show an error message if the profile already exists:
+        if profile_name in self.profiles.keys():
+            print(f"{self.model.upper()} profile '{profile_name}' already exists")
+            print("Update it with 'lgmpm.py --update'")
+        else:
+            self.profiles[profile_name] = profile_dict
+            self.last_run_profile = profile_name
+            save_status(self)
+        return
+
+    def list_profiles(self):
+        return
+
+    def show_profile(self):
+        return
+
+    def write_profile(self):
+        return
+
+    def update_profile(self, profile_name, profile_dict):
+        """
+        Updates an existing saved profile with the current mouse settings
+        Updates the last run profile
+        And saves the current status to the model's json
+        """
+        try:
+            self.profiles[profile_name].update(profile_dict)
+            self.last_run_profile = profile_name
+            save_status(self)
+        except KeyError:
+            print(f"Could not find {self.model.upper()} profile '{profile_name}'")
+            print(f"Try running 'lgmpm.py --list' for a list of saved profiles")
+            print("Or 'lgmpm.py --help' for help")
+        return
+
+    def delete_profile(self, profile_name):
+        try:
+            del self.profiles[profile_name]
+        except KeyError:
+            print(f"The profile {profile_name} does not exist for this mouse.")
+            print(f"Try running 'lgmpm.py --list' for a list of saved profiles.")
+            print("Or 'lgmpm.py --help' for help")
 
     def cycle_profile(self):
         """

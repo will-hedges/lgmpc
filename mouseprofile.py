@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
 import re
 import subprocess
-import sys
 import tempfile
 
 from utils import get_bash_stdout, get_mouse_alias_and_model
