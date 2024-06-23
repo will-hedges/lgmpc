@@ -47,6 +47,12 @@ def save_last_run_profile(json_fp, profile_name):
     return
 
 
+def print_list_or_help_msg():
+    print(f"Run 'lgmpm.py --list' for a list of saved profiles")
+    print("\tor 'lgmpm.py --help' for help")
+    return
+
+
 def save_status(Mouse):
     mouse_data = {
         "last_run_profile": Mouse.last_run_profile,
@@ -91,9 +97,8 @@ class Mouse:
         try:
             with open(model_json_fp, "r") as jf:
                 mouse_data = json.load(jf)
-        # catch if the file doesn't exist yet
-        # or if it was written by another call but ended up blank
-        except FileNotFoundError:
+        # catch if the file doesn't exist yet, or is blank
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
             # create the file
             model_json_fp.touch()
             # create the "default" profile
@@ -128,6 +133,7 @@ class Mouse:
         if profile_name in self.profiles.keys():
             print(f"{self.model.upper()} profile '{profile_name}' already exists")
             print("Update it with 'lgmpm.py --update'")
+            print_list_or_help_msg()
         else:
             self.profiles[profile_name] = profile_dict
             self.last_run_profile = profile_name
@@ -140,7 +146,15 @@ class Mouse:
     def show_profile(self):
         return
 
-    def write_profile(self):
+    def write_profile(self, profile_name):
+        # TODO rename this and the flag
+        try:
+            mp = MouseProfile(name=profile_name, attrs=self.profiles[profile_name])
+            mp.run()
+        except KeyError:
+            print(f"No stored {self.model.upper()} profile '{profile_name}'")
+            print_list_or_help_msg()
+
         return
 
     def update_profile(self, profile_name, profile_dict):
@@ -155,8 +169,7 @@ class Mouse:
             save_status(self)
         except KeyError:
             print(f"Could not find {self.model.upper()} profile '{profile_name}'")
-            print(f"Try running 'lgmpm.py --list' for a list of saved profiles")
-            print("Or 'lgmpm.py --help' for help")
+            print_list_or_help_msg()
         return
 
     def delete_profile(self, profile_name):
@@ -164,8 +177,7 @@ class Mouse:
             del self.profiles[profile_name]
         except KeyError:
             print(f"The profile {profile_name} does not exist for this mouse.")
-            print(f"Try running 'lgmpm.py --list' for a list of saved profiles.")
-            print("Or 'lgmpm.py --help' for help")
+            print_list_or_help_msg()
 
     def cycle_profile(self):
         """

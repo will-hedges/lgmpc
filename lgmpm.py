@@ -76,9 +76,6 @@ def main():
         pass
 
     elif args.new:
-        # create a new profile with the existing settings
-        #   and save it to mouse.profiles as a new key-value pair
-        #       where the key is the profile name and the value is the MouseProfile
         new_profile = MouseProfile(name=args.profile_name)
         mouse.add_profile(new_profile.name, new_profile.__dict__)
 
@@ -91,18 +88,11 @@ def main():
         pass
 
     elif args.write:
-        # TODO write the mouse profile to the mouse
-        pass
+        mouse.write_profile(args.profile_name)
 
     elif args.update:
-        # init a new profile with name given
         updated_profile = MouseProfile(name=args.profile_name)
-        # update the existing profile
-        # TODO add a try/except block for if the key doesn't exist
         mouse.update_profile(updated_profile.name, updated_profile.__dict__)
-        # TODO set the current/last run profile to the new one
-        # TODO write out the curernt/last run profile to json as well as the new profile data
-        pass
 
     elif args.delete:
         mouse.delete_profile(args.profile_name)
