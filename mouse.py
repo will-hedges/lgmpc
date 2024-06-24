@@ -178,7 +178,7 @@ class Mouse:
         Cycles through and runs the "next" indexed profile shell script
             then saves the current profile to the json file
         """
-        profile_list = list(self.profiles.keys())
+        profile_list = sorted(list(self.profiles.keys()))
         idx = profile_list.index(self.last_run_profile)
         try:
             next_profile = profile_list[idx + 1]
