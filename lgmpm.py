@@ -7,7 +7,7 @@ import sys
 
 from mouse import Mouse
 from mouseprofile import MouseProfile
-from utils import print_list_or_help_msg
+from utils import print_help_msg
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
     if flag_count > 1:
         print(f"Error: multiple flags received: {", ".join(sys.argv[1:])}")
         print("Please try again with only one flag")
-        print_list_or_help_msg()
+        print_help_msg()
         return
 
     # init mouse
@@ -82,8 +82,15 @@ def main():
         return
 
     elif args.cycle:
-        if len(mouse.profiles) < 2:
-            # TODO display an error message
+        # we will check to see if there is only one profile saved, since we
+        #   should always have default even if there was no json file prior to
+        #       first time setup, so check if # of profiles == 1
+        # NOTE the user could delete the default profile, so we will just show
+        #   whatever profile name is there
+        if len(mouse.profiles) == 1:
+            sole_profile_name = tuple(mouse.profiles.keys())[0]
+            print(f"Only 1 profile found: '{sole_profile_name}'")
+            print_help_msg()
             return
         else:
             mouse.cycle_profile()
@@ -94,7 +101,10 @@ def main():
         return
 
     elif args.list:
-        # TODO show a list of profiles
+        print(f"Found the following {mouse.model.upper()} profiles:")
+        for idx, name in enumerate(sorted(mouse.profiles)):
+            print(f"  {idx + 1}. {name}")
+        print_help_msg()
         return
 
     elif args.new:
@@ -115,7 +125,7 @@ def main():
     # if no flags are set, show a message
     else:
         print("No flag(s) set")
-        print_list_or_help_msg()
+        print_help_msg()
         return
 
 

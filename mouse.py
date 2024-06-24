@@ -7,7 +7,7 @@ import pickle
 import subprocess
 
 from mouseprofile import MouseProfile
-from utils import get_mouse_alias_and_model, print_list_or_help_msg
+from utils import get_mouse_alias_and_model, print_list_msg, print_help_msg
 
 
 # NOTE json may be a better option for serialization here, as you could go
@@ -127,7 +127,8 @@ class Mouse:
         if profile_name in self.profiles.keys():
             print(f"{self.model.upper()} profile '{profile_name}' already exists")
             print("Update it with 'lgmpm.py --update'")
-            print_list_or_help_msg()
+            print_list_msg()
+            print_help_msg()
         else:
             self.profiles[profile_name] = profile_dict
             self.last_run_profile = profile_name
@@ -147,7 +148,8 @@ class Mouse:
             mp.run()
         except KeyError:
             print(f"No stored {self.model.upper()} profile '{profile_name}'")
-            print_list_or_help_msg()
+            print_list_msg()
+            print_help_msg()
 
         return
 
@@ -163,7 +165,8 @@ class Mouse:
             save_status(self)
         except KeyError:
             print(f"Could not find {self.model.upper()} profile '{profile_name}'")
-            print_list_or_help_msg()
+            print_list_msg()
+            print_help_msg()
         return
 
     def delete_profile(self, profile_name):
@@ -171,7 +174,8 @@ class Mouse:
             del self.profiles[profile_name]
         except KeyError:
             print(f"The profile {profile_name} does not exist for this mouse.")
-            print_list_or_help_msg()
+            print_list_msg()
+            print_help_msg()
 
     def cycle_profile(self):
         """
