@@ -1,92 +1,59 @@
 #!/usr/bin/env python3
 # mouse.py - a Python class representing a Logitech G mouse
 
+import json
 from pathlib import Path
 import pickle
-import re
 import subprocess
 
-from utils import get_bash_stdout
-
-
-def get_mouse_alias_and_model():
-    """
-    Parses the ratbagctl short name of the connected mouse and the mouse model
-        Returns:
-            (alias, model)
-            alias (str): the ratbagctl name of the mouse, ex. "sleeping-puppy"
-            model (str): the model short name/number of the mouse, ex. "G403"
-    """
-    rbc_out = get_bash_stdout("ratbagctl list")
-    mouse_re = re.compile(r"([a-z-]+):.*(G\d{3}|G Pro).*")
-    mouse_mo = mouse_re.match(rbc_out)
-    alias = mouse_mo.group(1).lower()
-    model = mouse_mo.group(2).lower()
-    return (alias, model)
-
-
-def get_button_count(alias):
-    """
-    Gets the number of buttons on the connected mouse
-        Params:
-            alias (str): the ratbagctl short name of the connected mouse
-        Returns:
-            btn_ct (int): the number of buttons the mouse has
-    """
-    btn_ct = int(get_bash_stdout(f"ratbagctl {alias} button count"))
-    return btn_ct
-
-
-def get_all_shell_scripts_in(fp):
-    """
-    Creates a list of all the the .sh scripts within a folder
-
-        Params:
-            fp (Path): the Path of the mouse model
-        Returns:
-            profiles (list(Path)): a list of all Paths in fp with the .sh ext
-    """
-    profile_glob = sorted(fp.glob("*.sh"))
-    profiles = [Path(profile) for profile in profile_glob]
-    return profiles
+from mouseprofile import MouseProfile
+from utils import get_mouse_alias_and_model, print_list_or_help_msg
 
 
 # NOTE json may be a better option for serialization here, as you could go
 #   in and edit it manually rather than relying on pickle and rb/wb
-def get_pickled_profile(fp):
+def get_last_run_profile(fp):
     """
-    Pulls in the path of the last set profile from the pickle file
-        or creates a pickle file if it does not already exist
+    Pulls in the path of the last set profile from the model.json file
+        or creates a json file if it does not already exist
 
         Params:
+            TODO FIXME
             fp (Path): the Path of the mouse model directory
         Returns:
-            current_profile (Path): the full path of the last pickled profile .sh
+            last_run_profile (str): the name (i.e. key) of the last run profile
     """
 
-    pickle_path = Path(fp / f"{fp.name}.pickle")
+    json_path = Path(fp / f"{fp.name}.json")
     try:
-        with open(pickle_path, "rb") as pf:
-            current_profile = pickle.load(pf)
+        with open(json_path, "rb") as jf:
+            last_run_profile = json.load(jf)
     except (FileNotFoundError, EOFError):
-        pickle_path.touch()
-        current_profile = Path(fp / "default.sh")
-        current_profile.touch()
-        # TODO should make the default.sh here
+        json_path.touch()
+        last_run_profile = "default"
 
-    return current_profile
+    return last_run_profile
 
 
-def save_pickled_profile(pickle_fp, profile_fp):
+def save_last_run_profile(json_fp, profile_name):
     """
     Saves the path of the currently set profile .sh to pickle file
         Params:
-            pickle_fp (Path): the Path to the pickle file
-            profile_fp (Path): the Path to the profile shell script
+            json_fp (Path): the Path to the model.json file
+            profile_name (str): the name of the last run profile
     """
-    with open(pickle_fp, "wb") as pf:
-        pickle.dump(profile_fp, pf)
+    with open(json_fp, "w") as jf:
+        pickle.dump(profile_name, jf)
     return
+
+
+def save_status(Mouse):
+    mouse_data = {
+        "last_run_profile": Mouse.last_run_profile,
+        "profiles": Mouse.profiles,
+    }
+    with open(Mouse.model_json, "w") as jf:
+        json.dump(mouse_data, jf, indent=2)
 
 
 class Mouse:
@@ -98,36 +65,142 @@ class Mouse:
             model (str): the Logitech model name/number of the mouse
             button_count (int): the number of buttons the mouse has
             folder (Path): the dir containing profile scripts and pickle file for the mouse
-            profiles (list): a list of Path objects of all the local mouse profile scripts
-
+            profiles (dict): a dict of dicts containing the information for each profile
         Methods:
             cycle_profile TODO
     """
 
     def __init__(self):
-        self.alias, self.model = get_mouse_alias_and_model()
-        self.button_count = get_button_count(self.alias)
-        self.folder = Path(__file__).parent / "models" / self.model
-        # if the model's folder doesn't exist, create it
-        self.folder.mkdir(parents=True, exist_ok=True)
-        self.profiles = get_all_shell_scripts_in(self.folder)
+        # try to load from json
+        # if no .json, we will make one and set "profiles" and "last_profile" keys
+        # should it be one.json or model-specific?
+        # I like the simplicity of model-specific personally
+        # it will look something like this
+        """
+        {
+            "alias": "singing-gundi",
+            "model": "G403",
+            "profiles": {
+                "default": json.dumps(foo.__dict__),
+                "hades": json.dumps(bar.__dict__)
+            }
+        }
+        """
+        alias, model = get_mouse_alias_and_model()
+        model_json_fp = Path(__file__).parent / "models" / f"{model}.json"
+        try:
+            with open(model_json_fp, "r") as jf:
+                mouse_data = json.load(jf)
+        # catch if the file doesn't exist yet, or is blank
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
+            # create the file
+            model_json_fp.touch()
+            # create the "default" profile
+            mp = MouseProfile()
+            # create a dict that represents the mouse and the profiles
+            mouse_data = {}
+            # set the last run profile name as 'default'
+            last_run_profile = mp.name
+            mouse_data["last_run_profile"] = last_run_profile
+            # initialize a dict of profiles with default being the only entry
+            #   the key should be "default"
+            mouse_data["profiles"] = {}
+            mouse_data["profiles"][mp.name] = mp.__dict__
+            # dump the new mouse model data to file
+            with open(model_json_fp, "w") as jf:
+                json.dump(mouse_data, jf, indent=2)
+
+        self.alias = alias
+        self.model = model
+        self.model_json = model_json_fp
+        self.last_run_profile = mouse_data["last_run_profile"]
+        self.profiles = mouse_data["profiles"]
         return
+
+    def add_new_profile(self, profile_name, profile_dict):
+        """
+        Adds a new profile to self.profiles
+        Updates the last run profile
+        And saves the current status to the model json
+        """
+        # show an error message if the profile already exists:
+        if profile_name in self.profiles.keys():
+            print(f"{self.model.upper()} profile '{profile_name}' already exists")
+            print("Update it with 'lgmpm.py --update'")
+            print_list_or_help_msg()
+        else:
+            self.profiles[profile_name] = profile_dict
+            self.last_run_profile = profile_name
+            save_status(self)
+        return
+
+    def list_profiles(self):
+        return
+
+    def show_profile(self):  # TODO shouldn't this be a MouseProfile method?
+        return
+
+    def set_active_profile(self, profile_name):
+        # TODO rename this and the flag
+        try:
+            mp = MouseProfile(name=profile_name, attrs=self.profiles[profile_name])
+            mp.run()
+        except KeyError:
+            print(f"No stored {self.model.upper()} profile '{profile_name}'")
+            print_list_or_help_msg()
+
+        return
+
+    def update_profile(self, profile_name, profile_dict):
+        """
+        Updates an existing saved profile with the current mouse settings,
+            updates the last run profile,
+                and saves the current status to the model's json
+        """
+        try:
+            self.profiles[profile_name].update(profile_dict)
+            self.last_run_profile = profile_name
+            save_status(self)
+        except KeyError:
+            print(f"Could not find {self.model.upper()} profile '{profile_name}'")
+            print_list_or_help_msg()
+        return
+
+    def delete_profile(self, profile_name):
+        try:
+            del self.profiles[profile_name]
+        except KeyError:
+            print(f"The profile {profile_name} does not exist for this mouse.")
+            print_list_or_help_msg()
 
     def cycle_profile(self):
         """
         Cycles through and runs the "next" indexed profile shell script
-            then saves the current profile to the pickle file
+            then saves the current profile to the json file
         """
-        current_profile = get_pickled_profile(self.folder)
-        current_idx = self.profiles.index(current_profile)
+        profile_list = sorted(list(self.profiles.keys()))
+        idx = profile_list.index(self.last_run_profile)
         try:
-            current_profile = self.profiles[current_idx + 1]
+            next_profile = profile_list[idx + 1]
         except IndexError:
-            current_profile = self.profiles[0]
-        self.current_profile = current_profile
-        # run the new profile script with subprocess
-        subprocess.run(["sh", current_profile])
-        # write out the new profile to pickle
-        pickle_fp = Path(self.folder / f"{self.model}.pickle")
-        save_pickled_profile(pickle_fp, current_profile)
+            next_profile = profile_list[0]
+        # run the new profile script with subprocess, and save the mouse status
+        try:
+            mp = MouseProfile(name=next_profile, attrs=self.profiles[next_profile])
+            mp.run()
+            self.last_run_profile = next_profile
+            save_status(self)
+        except Exception as e:
+            print("An exception occurred:")
+            print(e)
+
         return
+
+
+def main():
+    mouse = Mouse()
+    return mouse
+
+
+if __name__ == "__main__":
+    main()

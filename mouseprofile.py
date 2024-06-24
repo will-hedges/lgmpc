@@ -1,203 +1,166 @@
 #!/usr/bin/env python3
-# mouse_profile.py - a Python class representing a ratbagctl profile for Logitech G mice
 
-from pathlib import Path
 import re
 import subprocess
-import sys
+import tempfile
 
-from utils import get_bash_stdout
-from mouse import Mouse
+from utils import get_bash_stdout, get_mouse_alias_and_model
 
 
 class MouseProfile:
     """
     TODO
         Attrs:
-            mouse (Mouse): Mouse class from mouse.py
             name (str): the name of the profile, ex. "Default" or "Hades"
             report_rate (int): polling rate, in Hz
             resolutions (list(int)): list of DPI resolutions to set
             default_resolution (int): index of the default DPI
             buttons (list(str)): list of all the buttons and macros
             leds (list(dict)): list of dicts containing led properties
-            sh_script (str): a big f-string that can be used to set the profile
     """
 
-    def __init__(self, name="Default", mouse=Mouse()):
-        self.mouse = mouse
-        self.name = name
-        # generate attrs using the current mouse settings
-        report_rate = int(get_bash_stdout(f"ratbagctl {self.mouse.alias} rate get"))
-        # iterate over all the set resolutions and get them into a list
-        resolutions = []
-        res_idx = 0
-        res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
-        while True:
-            res_out = get_bash_stdout(
-                f"ratbagctl {self.mouse.alias} resolution {res_idx} get"
-            )
-            res_mo = res_re.match(res_out)
-            if res_mo:
-                resolutions.append(res_mo.group(1))
-                res_idx += 1
-            else:
-                break
+    def __init__(self, name="default", attrs={}):
+        # if the user doesn't pass the attrs dict, get all of it from ratbagctl
+        if attrs == {}:
+            self.name = name
+            # NOTE don't set device as an attr because we don't want it in MouseProfile.__dict__
+            device = get_mouse_alias_and_model()[0]
+            # generate attrs using the current mouse settings
+            # TODO get the mouse button count
+            btn_ct = int(get_bash_stdout(f"ratbagctl {device} button count"))
 
-        # ratbagctl uses the resolution index for the default dpi
-        #   so 'default_resolution' here is an index, not a dpi
-        default_resolution = int(
-            get_bash_stdout(f"ratbagctl {self.mouse.alias} resolution default get")
-        )
-        default_dpi = resolutions[default_resolution]
+            # start with polling rate
+            self.report_rate = int(get_bash_stdout(f"ratbagctl {device} rate get"))
 
-        # iterate over all the set buttons and get them into a list
-        #   use .replace() to get 'command-ified' keypresses
-        #       NOTE that macro waits are written like 't300' (wait 300ms)
-        buttons = []
-        btn_re = re.compile(r".*'(.*)'.*")
-        for i in range(self.mouse.button_count):
-            btn_out = get_bash_stdout(
-                f"ratbagctl {self.mouse.alias} button {i} get"
-            ).strip()
-            btn_mo = btn_re.match(btn_out)
-            buttons.append(
-                btn_mo.group(1)
-                .replace("↕", "KEY_")
-                .replace("↓", "+KEY_")
-                .replace("↑", "-KEY_")
-            )
-
-        # iterate over all the set LEDs and get them into a list of dicts
-        #   we will later iterate over each dict and only set k-v pairs that exist
-        leds = []
-        led_idx = 0
-        led_re = re.compile(
-            r"LED: (\d), depth: rgb, mode: (on|off|cycle|breathing), color: (\w{6})|, duration: (\d{,5}), brightness: (\d{,3})"
-        )
-        while True:
-            led_out = get_bash_stdout(f"ratbagctl {self.mouse.alias} led {led_idx} get")
-            led_mo = led_re.match(led_out)
-            if led_mo:
-                leds.append(
-                    {
-                        "mode": led_mo.group(2),
-                        "color": led_mo.group(3),
-                        "duration": led_mo.group(4),
-                        "brightness": led_mo.group(5),
-                    }
+            # iterate over all the set resolutions and get them into a list
+            self.resolutions = []
+            res_idx = 0
+            res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
+            while True:
+                res_out = get_bash_stdout(
+                    f"ratbagctl {device} resolution {res_idx} get"
                 )
-                led_idx += 1
-            else:
-                break
+                res_mo = res_re.match(res_out)
+                if res_mo:
+                    self.resolutions.append(res_mo.group(1))
+                    res_idx += 1
+                else:
+                    break
 
-        ### GENERATE THE SHELL SCRIPT ###
-        # all the symbols here can throw errors so we'll use a raw string
-        raw_device_print = r" '{print $2}' | awk '{$1=$1};1')"
-
-        # join up all the lines of the different sections
-        res_lines = []
-        for idx, dpi in enumerate(resolutions):
-            res_lines.append(
-                f'ratbagctl "$device" resolution {idx} dpi set {dpi} --nocommit'
+            # ratbagctl uses the resolution index for the default dpi
+            #   so 'default_resolution' here is an index, not a dpi
+            self.default_resolution = int(
+                get_bash_stdout(f"ratbagctl {device} resolution default get")
             )
-        joined_res_lines = "\n".join(res_lines)
 
-        led_lines = []
-        for idx, led in enumerate(leds):
-            led_line = f'ratbagctl "$device" led {idx} set'
-            for key, value in led.items():
-                # we only want to set LED properties that exist
-                if value:
-                    led_line += f" {key} {value}"
-            led_line += " --nocommit"
-            led_lines.append(led_line)
-        joined_led_lines = "\n".join(led_lines)
+            # iterate over all the set buttons and get them into a list
+            #   use .replace() to get 'command-ified' keypresses
+            #       NOTE macro waits are written like 't300' (wait 300ms)
+            self.buttons = []
+            btn_re = re.compile(r".*'(.*)'.*")
+            for i in range(btn_ct):
+                btn_out = get_bash_stdout(f"ratbagctl {device} button {i} get").strip()
+                btn_mo = btn_re.match(btn_out)
+                self.buttons.append(
+                    btn_mo.group(1)
+                    .replace("↕", "KEY_")
+                    .replace("↓", "+KEY_")
+                    .replace("↑", "-KEY_")
+                )
 
-        btn_lines = []
-        for idx, btn in enumerate(buttons):
-            btn_line = f'ratbagctl "$device" button {idx} action set '
-            if btn.startswith("button") is False:
-                btn_line += f"macro "
-            btn_line += btn
-            # --nocommit waits to write all the properties to the mouse
-            #   so the last line should NOT have '--nocommit'
-            if not btn == buttons[-1]:
-                btn_line += " --nocommit"
-            btn_lines.append(btn_line)
-        joined_btn_lines = "\n".join(btn_lines)
+            # iterate over all the set LEDs and get them into a list of dicts
+            #   we will later iterate over each dict and only set k-v pairs that exist
+            self.leds = []
+            led_idx = 0
+            led_re = re.compile(
+                r"LED: (\d), depth: rgb, mode: (on|off|cycle|breathing), color: (\w{6})|, duration: (\d{,5}), brightness: (\d{,3})"
+            )
+            while True:
+                led_out = get_bash_stdout(f"ratbagctl {device} led {led_idx} get")
+                led_mo = led_re.match(led_out)
+                if led_mo:
+                    mode, color, duration, brightness = led_mo.groups()[1:]
+                    # brightness will not always display out from ratbagctl
+                    # if this happens, just set max (255)
+                    if brightness is None:
+                        brightness = 255
+                    self.leds.append(
+                        {
+                            "mode": mode,
+                            "color": color,
+                            "duration": duration,
+                            "brightness": brightness,
+                        }
+                    )
+                    led_idx += 1
+                else:
+                    break
+        else:
+            self.name = attrs["name"]
+            self.report_rate = attrs["report_rate"]
+            self.resolutions = attrs["resolutions"]
+            self.default_resolution = attrs["default_resolution"]
+            self.buttons = attrs["buttons"]
+            self.leds = attrs["leds"]
 
-        sh_script = f"""#!/bin/bash
-# {name}.sh - {name} mouse profile for Logitech {self.mouse.model.upper()}
-
-profile_name="{name}"
-
-# name the device
-device=$(ratbagctl list | grep -E 'G403' | awk -F: {raw_device_print}
-
-# set the active profile (0 is default)
-ratbagctl "$device" profile active set 0 --nocommit
-
-# set the polling rate
-ratbagctl "$device" rate set {report_rate} --nocommit
-
-# set resolutions, as well as default resolution and active dpi
-{joined_res_lines}
-
-ratbagctl "$device" resolution default set {default_resolution} --nocommit
-ratbagctl "$device" dpi set {default_dpi} --nocommit
-
-# set all the LEDs
-{joined_led_lines}
-
-# set all the buttons
-{joined_btn_lines}
-
-# if running from bash, show a "success" line
-echo "$profile_name profile set for $device"
-"""
-        # setting all the init attrs here at the end for ease of reading
-        self.report_rate = report_rate
-        self.resolutions = resolutions
-        self.default_resolution = default_resolution
-        self.buttons = buttons
-        self.leds = leds
-        self.sh_script = sh_script
         return
 
-    def write_sh_to_file(self):
-        sh_script_path = Path(self.mouse.folder / f"{self.name.lower()}.sh")
-        with open(sh_script_path, "w") as fo:
-            fo.write(self.sh_script)
-        # give the script execute permissions
-        subprocess.run(["chmod", "a+x", sh_script_path])
-        self.sh_script_path = sh_script_path
+    def run(self):
+        device, model = get_mouse_alias_and_model()
+
+        commands = []
+        # set the polling rate
+        commands.append(f"\nratbagctl --nocommit {device} rate set {self.report_rate}")
+        # set the resolutions
+        for idx, dpi in enumerate(self.resolutions):
+            commands.append(
+                f"\nratbagctl --nocommit {device} resolution {idx} dpi set {dpi}"
+            )
+        # set default resolution and dpi
+        commands.append(
+            f"\nratbagctl --nocommit {device} resolution default set {self.default_resolution}"
+        )
+        commands.append(
+            f"\nratbagctl --nocommit {device} dpi set {self.resolutions[self.default_resolution]}"
+        )
+
+        # set the buttons
+        for idx, btn in enumerate(self.buttons):
+            cmd = f"\nratbagctl --nocommit {device} button {idx} action set"
+            if btn.startswith(("-", "+", "KEY", "t")):
+                cmd += " macro "
+            cmd += " " + btn
+            commands.append(cmd)
+
+        # set the LEDs
+        for idx, led in enumerate(self.leds):
+            cmd = f"\nratbagctl --nocommit {device} led {idx} set"
+            for key, value in led.items():
+                if value:
+                    cmd += f" {key} {value}"
+            commands.append(cmd)
+
+        # remove '--nocommit' from the last line
+        #   this will send the whole profile at once
+        last_command = commands.pop()
+        last_command = last_command.replace(" --nocommit ", " ")
+        commands.append(last_command)
+        with tempfile.NamedTemporaryFile() as tmp:
+            tmp_sh = tmp.name + ".sh"
+            with open(tmp_sh, "w") as sh_file:
+                sh_file.writelines(commands)
+            try:
+                subprocess.run(["sh", tmp_sh])
+                print(f"Profile '{self.name}' successfully written to {model.upper()}")
+            except Exception as e:
+                print(f"An Exception occurred: {e}")
+
         return
 
 
 def main():
-    """
-    initialize a MouseProfile so we can do two things:
-        1. initialize a Mouse (gets the alias and model dir from __init__)
-        2. creates a default.sh in the model dir (with the write_sh_to_file method)
-
-    so for users running this script, we want to do both of those things
-        for the currently connected mouse
-    """
-
-    # look to see if the user named the profile with sys.argv
-    #   otherwise, set up a "Default" profile with the existing mouse settings
-    try:
-        mp = MouseProfile(name=sys.argv[1])
-    except IndexError:
-        mp = MouseProfile()
-    mp.write_sh_to_file()
-
-    print(f"LGMP: Successfully created {mp.name} profile at {mp.sh_script_path}")
-    print(
-        f"LGMP: You can now set this profile to your mouse with 'sh {mp.sh_script_path}'"
-    )
-    print(f"LGMP:     or cycle through profiles with 'python3 lgmp.py'")
+    mp = MouseProfile()
+    mp.run()
     return
 
 
