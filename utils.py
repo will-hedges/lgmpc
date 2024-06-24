@@ -33,3 +33,12 @@ def get_mouse_alias_and_model():
     alias = mouse_mo.group(1).lower()
     model = mouse_mo.group(2).lower()
     return (alias, model)
+
+
+def print_list_or_help_msg():
+    """
+    Prints generic instructions in case of an invalid command
+    """
+    print(f"Run 'lgmpm.py --list' for a list of saved profiles")
+    print(" or 'lgmpm.py --help' for help")
+    return

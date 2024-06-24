@@ -7,7 +7,7 @@ import pickle
 import subprocess
 
 from mouseprofile import MouseProfile
-from utils import get_mouse_alias_and_model
+from utils import get_mouse_alias_and_model, print_list_or_help_msg
 
 
 # NOTE json may be a better option for serialization here, as you could go
@@ -44,12 +44,6 @@ def save_last_run_profile(json_fp, profile_name):
     """
     with open(json_fp, "w") as jf:
         pickle.dump(profile_name, jf)
-    return
-
-
-def print_list_or_help_msg():
-    print(f"Run 'lgmpm.py --list' for a list of saved profiles")
-    print("\tor 'lgmpm.py --help' for help")
     return
 
 
@@ -108,9 +102,9 @@ class Mouse:
             # set the last run profile name as 'default'
             last_run_profile = mp.name
             mouse_data["last_run_profile"] = last_run_profile
-            mouse_data["profiles"] = {}
             # initialize a dict of profiles with default being the only entry
             #   the key should be "default"
+            mouse_data["profiles"] = {}
             mouse_data["profiles"][mp.name] = mp.__dict__
             # dump the new mouse model data to file
             with open(model_json_fp, "w") as jf:
@@ -123,7 +117,7 @@ class Mouse:
         self.profiles = mouse_data["profiles"]
         return
 
-    def add_profile(self, profile_name, profile_dict):
+    def add_new_profile(self, profile_name, profile_dict):
         """
         Adds a new profile to self.profiles
         Updates the last run profile
@@ -143,10 +137,10 @@ class Mouse:
     def list_profiles(self):
         return
 
-    def show_profile(self):
+    def show_profile(self):  # TODO shouldn't this be a MouseProfile method?
         return
 
-    def write_profile(self, profile_name):
+    def set_active_profile(self, profile_name):
         # TODO rename this and the flag
         try:
             mp = MouseProfile(name=profile_name, attrs=self.profiles[profile_name])
@@ -159,9 +153,9 @@ class Mouse:
 
     def update_profile(self, profile_name, profile_dict):
         """
-        Updates an existing saved profile with the current mouse settings
-        Updates the last run profile
-        And saves the current status to the model's json
+        Updates an existing saved profile with the current mouse settings,
+            updates the last run profile,
+                and saves the current status to the model's json
         """
         try:
             self.profiles[profile_name].update(profile_dict)
@@ -182,20 +176,24 @@ class Mouse:
     def cycle_profile(self):
         """
         Cycles through and runs the "next" indexed profile shell script
-            then saves the current profile to the pickle file
+            then saves the current profile to the json file
         """
-        last_run_profile = get_last_run_profile(self.folder)
-        current_idx = self.profiles.index(last_run_profile)
+        profile_list = list(self.profiles.keys())
+        idx = profile_list.index(self.last_run_profile)
         try:
-            last_run_profile = self.profiles[current_idx + 1]
+            next_profile = profile_list[idx + 1]
         except IndexError:
-            last_run_profile = self.profiles[0]
-        self.last_run_profile = last_run_profile
-        # run the new profile script with subprocess
-        subprocess.run(["sh", last_run_profile])
-        # write out the new profile to pickle
-        json_fp = Path(self.folder / f"{self.model}.pickle")
-        save_last_run_profile(json_fp, last_run_profile)
+            next_profile = profile_list[0]
+        # run the new profile script with subprocess, and save the mouse status
+        try:
+            mp = MouseProfile(name=next_profile, attrs=self.profiles[next_profile])
+            mp.run()
+            self.last_run_profile = next_profile
+            save_status(self)
+        except Exception as e:
+            print("An exception occurred:")
+            print(e)
+
         return
 
 

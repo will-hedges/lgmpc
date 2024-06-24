@@ -106,7 +106,7 @@ class MouseProfile:
         return
 
     def run(self):
-        device = get_mouse_alias_and_model()[0]
+        device, model = get_mouse_alias_and_model()
 
         commands = []
         # set the polling rate
@@ -149,8 +149,11 @@ class MouseProfile:
             tmp_sh = tmp.name + ".sh"
             with open(tmp_sh, "w") as sh_file:
                 sh_file.writelines(commands)
-                print("success")
-            subprocess.run(["sh", tmp_sh])
+            try:
+                subprocess.run(["sh", tmp_sh])
+                print(f"Profile '{self.name}' successfully written to {model.upper()}")
+            except Exception as e:
+                print(f"An Exception occurred: {e}")
 
         return
 
