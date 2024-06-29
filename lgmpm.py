@@ -7,7 +7,7 @@ import sys
 
 from mouse import Mouse
 from mouseprofile import MouseProfile
-from utils import print_help_msg
+from utils import get_bash_stdout, print_help_msg
 
 
 def main():
@@ -113,8 +113,13 @@ def main():
         return
 
     elif args.show:
-        # TODO show the current mouse settings with ratbagctl
-        # TODO I think this should be a mouseProfile method
+        # show the name of the mouse
+        full_mouse_name = get_bash_stdout(f"ratbagctl {mouse.alias} name").strip()
+        print(f"{full_mouse_name} aka '{mouse.alias}'")
+        mp = MouseProfile(
+            name=args.profile_name, attrs=mouse.profiles[args.profile_name]
+        )
+        mp.show()
         return
 
     elif args.update:
