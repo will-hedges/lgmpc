@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 
 import re
+import requests
 import subprocess
 import tempfile
 
+from bs4 import BeautifulSoup
+
 from utils import get_bash_stdout, get_mouse_alias_and_model
+
+
+def color_hex_to_desc(color_hex):
+    res = requests.get(f"https://www.colorhexa.com/{color_hex}")
+    res.raise_for_status()
+    soup = BeautifulSoup(res.text, features="html.parser")
+    color = soup.select(".color-description p strong").pop().get_text()
+    return color.lower()
 
 
 class MouseProfile:
@@ -42,7 +53,7 @@ class MouseProfile:
                 )
                 res_mo = res_re.match(res_out)
                 if res_mo:
-                    self.resolutions.append(res_mo.group(1))
+                    self.resolutions.append(int(res_mo.group(1)))
                     res_idx += 1
                 else:
                     break
@@ -156,6 +167,39 @@ class MouseProfile:
                 print(f"An Exception occurred: {e}")
 
         return
+
+    def show(self):
+        print(f"Profile: {self.name}")
+        print(f"  Polling rate: {self.report_rate} Hz")
+        print(f"  Resolutions:")
+        for idx, res in enumerate(self.resolutions):
+            # hide inactive resolutions
+            if res != 0:
+                res_str = f"{idx}: {res} dpi"
+                if idx == self.default_resolution:
+                    res_str += " (default)"
+            if res > 0:
+                print("    " + res_str)
+        print(f"  Buttons:")
+        for idx, btn in enumerate(self.buttons):
+            btn_str = f"    button {idx}: "
+            if btn.startswith("button"):
+                btn_str += f"{btn}"
+            elif btn.startswith(("KEY_", "+", "-", "t")):
+                btn_str += f"macro {btn}"
+            print(btn_str)
+        print("  LEDs:")
+        for idx, led in enumerate(self.leds):
+            print(f"    led {idx}:")
+            for prop, val in led.items():
+                if val:
+                    led_str = f"      {prop}: {val}"
+                    if prop == "color":
+                        color_name = color_hex_to_desc(val)
+                        led_str += f" '{color_name}'"
+                    if prop == "brightness" and val == 255:
+                        led_str += " (max)"
+                    print(led_str)
 
 
 def main():

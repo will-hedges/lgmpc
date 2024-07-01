@@ -35,10 +35,11 @@ def get_mouse_alias_and_model():
     return (alias, model)
 
 
-def print_list_or_help_msg():
-    """
-    Prints generic instructions in case of an invalid command
-    """
-    print(f"Run 'lgmpm.py --list' for a list of saved profiles")
-    print(" or 'lgmpm.py --help' for help")
+def print_list_msg():
+    print("See 'lgmpm.py --list' for a list of saved profiles")
+    return
+
+
+def print_help_msg():
+    print("See 'lgmpm.py --help' for help")
     return
