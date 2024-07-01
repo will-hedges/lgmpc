@@ -5,39 +5,24 @@ import json
 from pathlib import Path
 
 from mouseprofile import MouseProfile
-from utils import get_mouse_alias_and_model, print_list_msg, print_help_msg
+from utils import (
+    get_bash_stdout,
+    print_help_msg,
+    print_list_msg,
+    get_mouse_alias_and_model,
+)
 
 
 class Mouse:
     """
     A class to represent a Logitech G mouse
-
-        Attrs:
-            alias (str): the ratbagctl short name of the mouse
-            model (str): the Logitech model name/number of the mouse
-            button_count (int): the number of buttons the mouse has
-            folder (Path): the dir containing profile scripts and pickle file for the mouse
-            profiles (dict): a dict of dicts containing the information for each profile
-        Methods:
-            cycle_profile TODO
+        TODO docstring
     """
 
     def __init__(self):
         # try to load from json
-        # if no .json, we will make one and set "profiles" and "last_profile" keys
-        # should it be one.json or model-specific?
-        # I like the simplicity of model-specific personally
-        # it will look something like this
-        """
-        {
-            "alias": "singing-gundi",
-            "model": "G403",
-            "profiles": {
-                "default": json.dumps(foo.__dict__),
-                "hades": json.dumps(bar.__dict__)
-            }
-        }
-        """
+        # if no {model}.json, we will make one and set 'profiles' and
+        #   'last_run_profile' keys
         alias, model = get_mouse_alias_and_model()
         model_json_fp = Path(__file__).parent / "models" / f"{model}.json"
         try:
@@ -45,11 +30,10 @@ class Mouse:
                 mouse_data = json.load(jf)
         # catch if the file doesn't exist yet, or is blank
         except (FileNotFoundError, json.decoder.JSONDecodeError):
-            # create the file
+            # create the file, the 'default' profile, and a dict representing
+            #   both the mouse and its profiles
             model_json_fp.touch()
-            # create the "default" profile
             mp = MouseProfile()
-            # create a dict that represents the mouse and the profiles
             mouse_data = {}
             # set the last run profile name as 'default'
             last_run_profile = mp.name
@@ -68,8 +52,11 @@ class Mouse:
         self.last_run_profile = mouse_data["last_run_profile"]
         self.profiles = mouse_data["profiles"]
         return
-    
+
     def save_status(self):
+        """
+        Saves the mouse, profile data to {model.json}
+        """
         mouse_data = {
             "last_run_profile": self.last_run_profile,
             "profiles": self.profiles,
@@ -78,7 +65,85 @@ class Mouse:
             json.dump(mouse_data, jf, indent=2)
         return
 
-    def add_new_profile(self, profile_name, profile_dict):
+    def set_active_profile(self, profile_name):
+        """
+        Loads/writes the selected profile onto the mouse
+        """
+        try:
+            mp = MouseProfile(
+                name=profile_name,
+                attrs=self.profiles[profile_name],
+            )
+            mp.run()
+            # set the last active profile
+            self.save_status()
+        except KeyError:
+            print(f"No stored {self.model.upper()} profile '{profile_name}'")
+            print_list_msg()
+            print_help_msg()
+        return
+
+    def cycle_profile(self):
+        """
+        Cycles through and runs the "next" indexed profile shell script
+            then saves the current profile to the json file
+        """
+        # check to see if there is only one profile saved, since there should
+        #   always be at least one profile, or default, even if there was no
+        #       json file prior to first time setup
+        # NOTE the user could delete the default profile, so we will just show
+        #   whatever profile name is there
+        if len(self.profiles) == 1:
+            sole_profile_name = tuple(self.profiles.keys())[0]
+            print(f"Only 1 profile found: '{sole_profile_name}'")
+            print_help_msg()
+
+        else:
+            profile_list = sorted(list(self.profiles.keys()))
+            idx = profile_list.index(self.last_run_profile)
+            try:
+                next_profile = profile_list[idx + 1]
+            except IndexError:
+                next_profile = profile_list[0]
+            # run the new profile script with subprocess, and save the mouse status
+            try:
+                mp = MouseProfile(name=next_profile, attrs=self.profiles[next_profile])
+                mp.run()
+                self.last_run_profile = next_profile
+                self.save_status()
+            except Exception as e:
+                print("An exception occurred:")
+                print(e)
+        return
+
+    def delete_profile(self, profile_name):
+        """
+        Deletes a profile from {model}.json
+        """
+        try:
+            del self.profiles[profile_name]
+            # if the user deleted the last run profile
+            #   set last run profile to 'default' and save to file
+            if self.last_run_profile == profile_name:
+                self.last_run_profile = "default"
+            self.save_status()
+        except KeyError:
+            print(f"The profile {profile_name} does not exist for this mouse.")
+            print_list_msg()
+            print_help_msg()
+        return
+
+    def list_profiles(self):
+        """
+        Lists all the saved profiles in {model}.json
+        """
+        print(f"Found the following {self.model.upper()} profiles:")
+        for idx, name in enumerate(sorted(self.profiles)):
+            print(f"  {idx + 1}. {name}")
+        print_help_msg()
+        return
+
+    def add_new_profile(self, profile_name):
         """
         Adds a new profile to self.profiles
         Updates the last run profile
@@ -91,38 +156,34 @@ class Mouse:
             print_list_msg()
             print_help_msg()
         else:
-            self.profiles[profile_name] = profile_dict
+            new_profile = MouseProfile(name=profile_name)
+            self.profiles[profile_name] = new_profile.__dict__
             self.last_run_profile = profile_name
             self.save_status()
         return
 
-    def list_profiles(self):
-        return
-
-    def show_profile(self):  # TODO shouldn't this be a MouseProfile method?
-        return
-
-    def set_active_profile(self, profile_name):
-        try:
-            mp = MouseProfile(name=profile_name, attrs=self.profiles[profile_name])
-            mp.run()
-            # set the last active profile
-            self.save_status()
-        except KeyError:
-            print(f"No stored {self.model.upper()} profile '{profile_name}'")
-            print_list_msg()
-            print_help_msg()
-
+    def show_profile(self, profile_name):
+        """
+        Displays the profile data in a format similar to the output of
+            'ratbagctl {alias} info'
+        """
+        # get the 'long form' name of the mouse for display
+        #   i.e. 'Logitech G403 Prodigy Gaming Mouse' instead of 'g403'
+        full_mouse_name = get_bash_stdout(f"ratbagctl {self.alias} name").strip()
+        profile_attrs = self.profiles[profile_name]
+        mp = MouseProfile(name=profile_name, attrs=profile_attrs)
+        print(f"{full_mouse_name} aka '{self.alias}'")
+        mp.show()
         return
 
     def update_profile(self, profile_name, profile_dict):
         """
         Updates an existing saved profile with the current mouse settings,
-            updates the last run profile,
-                and saves the current status to the model's json
+            updates the last run profile, and saves the current status to {model}.json
         """
         try:
-            self.profiles[profile_name].update(profile_dict)
+            updated_profile = MouseProfile(name=profile_name)
+            self.profiles[profile_name].update(updated_profile.__dict__)
             self.last_run_profile = profile_name
             self.save_status()
         except KeyError:
@@ -130,43 +191,3 @@ class Mouse:
             print_list_msg()
             print_help_msg()
         return
-
-    def delete_profile(self, profile_name):
-        try:
-            del self.profiles[profile_name]
-        except KeyError:
-            print(f"The profile {profile_name} does not exist for this mouse.")
-            print_list_msg()
-            print_help_msg()
-
-    def cycle_profile(self):
-        """
-        Cycles through and runs the "next" indexed profile shell script
-            then saves the current profile to the json file
-        """
-        profile_list = sorted(list(self.profiles.keys()))
-        idx = profile_list.index(self.last_run_profile)
-        try:
-            next_profile = profile_list[idx + 1]
-        except IndexError:
-            next_profile = profile_list[0]
-        # run the new profile script with subprocess, and save the mouse status
-        try:
-            mp = MouseProfile(name=next_profile, attrs=self.profiles[next_profile])
-            mp.run()
-            self.last_run_profile = next_profile
-            self.save_status()
-        except Exception as e:
-            print("An exception occurred:")
-            print(e)
-
-        return
-
-
-def main():
-    mouse = Mouse()
-    return mouse
-
-
-if __name__ == "__main__":
-    main()

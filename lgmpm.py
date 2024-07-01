@@ -6,8 +6,7 @@ import argparse
 import sys
 
 from mouse import Mouse
-from mouseprofile import MouseProfile
-from utils import get_bash_stdout, print_help_msg
+from utils import print_help_msg
 
 
 def main():
@@ -74,64 +73,35 @@ def main():
         print_help_msg()
         return
 
-    # init mouse
     mouse = Mouse()
 
     if args.active:
         mouse.set_active_profile(args.profile_name)
-        return
 
     elif args.cycle:
-        # we will check to see if there is only one profile saved, since we
-        #   should always have default even if there was no json file prior to
-        #       first time setup, so check if # of profiles == 1
-        # NOTE the user could delete the default profile, so we will just show
-        #   whatever profile name is there
-        if len(mouse.profiles) == 1:
-            sole_profile_name = tuple(mouse.profiles.keys())[0]
-            print(f"Only 1 profile found: '{sole_profile_name}'")
-            print_help_msg()
-            return
-        else:
-            mouse.cycle_profile()
-            return
+        mouse.cycle_profile()
 
     elif args.delete:
         mouse.delete_profile(args.profile_name)
-        return
 
     elif args.list:
-        print(f"Found the following {mouse.model.upper()} profiles:")
-        for idx, name in enumerate(sorted(mouse.profiles)):
-            print(f"  {idx + 1}. {name}")
-        print_help_msg()
-        return
+        mouse.list_profiles()
 
     elif args.new:
-        new_profile = MouseProfile(name=args.profile_name)
-        mouse.add_new_profile(args.profile_name, new_profile.__dict__)
-        return
+        mouse.add_new_profile(args.profile_name)
 
     elif args.show:
-        # show the name of the mouse
-        full_mouse_name = get_bash_stdout(f"ratbagctl {mouse.alias} name").strip()
-        print(f"{full_mouse_name} aka '{mouse.alias}'")
-        mp = MouseProfile(
-            name=args.profile_name, attrs=mouse.profiles[args.profile_name]
-        )
-        mp.show()
-        return
+        mouse.show_profile(args.profile_name)
 
     elif args.update:
-        updated_profile = MouseProfile(name=args.profile_name)
-        mouse.update_profile(args.profile_name, updated_profile.__dict__)
-        return
+        mouse.update_profile(args.profile_name)
 
     # if no flags are set, show a message
     else:
         print("No flag(s) set")
         print_help_msg()
-        return
+
+    return
 
 
 if __name__ == "__main__":

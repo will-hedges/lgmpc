@@ -200,13 +200,3 @@ class MouseProfile:
                     if prop == "brightness" and val == 255:
                         led_str += " (max)"
                     print(led_str)
-
-
-def main():
-    mp = MouseProfile()
-    mp.run()
-    return
-
-
-if __name__ == "__main__":
-    main()
