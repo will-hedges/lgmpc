@@ -3,57 +3,9 @@
 
 import json
 from pathlib import Path
-import pickle
-import subprocess
 
 from mouseprofile import MouseProfile
 from utils import get_mouse_alias_and_model, print_list_msg, print_help_msg
-
-
-# NOTE json may be a better option for serialization here, as you could go
-#   in and edit it manually rather than relying on pickle and rb/wb
-def get_last_run_profile(fp):
-    """
-    Pulls in the path of the last set profile from the model.json file
-        or creates a json file if it does not already exist
-
-        Params:
-            TODO FIXME
-            fp (Path): the Path of the mouse model directory
-        Returns:
-            last_run_profile (str): the name (i.e. key) of the last run profile
-    """
-
-    json_path = Path(fp / f"{fp.name}.json")
-    try:
-        with open(json_path, "rb") as jf:
-            last_run_profile = json.load(jf)
-    except (FileNotFoundError, EOFError):
-        json_path.touch()
-        last_run_profile = "default"
-
-    return last_run_profile
-
-
-def save_last_run_profile(json_fp, profile_name):
-    """
-    Saves the path of the currently set profile .sh to pickle file
-        Params:
-            json_fp (Path): the Path to the model.json file
-            profile_name (str): the name of the last run profile
-    """
-    with open(json_fp, "w") as jf:
-        pickle.dump(profile_name, jf)
-    return
-
-
-def save_status(Mouse):
-    mouse_data = {
-        "last_run_profile": Mouse.last_run_profile,
-        "profiles": Mouse.profiles,
-    }
-    with open(Mouse.model_json, "w") as jf:
-        json.dump(mouse_data, jf, indent=2)
 
 
 class Mouse:
@@ -116,6 +68,15 @@ class Mouse:
         self.last_run_profile = mouse_data["last_run_profile"]
         self.profiles = mouse_data["profiles"]
         return
+    
+    def save_status(self):
+        mouse_data = {
+            "last_run_profile": self.last_run_profile,
+            "profiles": self.profiles,
+        }
+        with open(self.model_json, "w") as jf:
+            json.dump(mouse_data, jf, indent=2)
+        return
 
     def add_new_profile(self, profile_name, profile_dict):
         """
@@ -132,7 +93,7 @@ class Mouse:
         else:
             self.profiles[profile_name] = profile_dict
             self.last_run_profile = profile_name
-            save_status(self)
+            self.save_status()
         return
 
     def list_profiles(self):
@@ -142,10 +103,11 @@ class Mouse:
         return
 
     def set_active_profile(self, profile_name):
-        # TODO rename this and the flag
         try:
             mp = MouseProfile(name=profile_name, attrs=self.profiles[profile_name])
             mp.run()
+            # set the last active profile
+            self.save_status()
         except KeyError:
             print(f"No stored {self.model.upper()} profile '{profile_name}'")
             print_list_msg()
@@ -162,7 +124,7 @@ class Mouse:
         try:
             self.profiles[profile_name].update(profile_dict)
             self.last_run_profile = profile_name
-            save_status(self)
+            self.save_status()
         except KeyError:
             print(f"Could not find {self.model.upper()} profile '{profile_name}'")
             print_list_msg()
@@ -193,7 +155,7 @@ class Mouse:
             mp = MouseProfile(name=next_profile, attrs=self.profiles[next_profile])
             mp.run()
             self.last_run_profile = next_profile
-            save_status(self)
+            self.save_status()
         except Exception as e:
             print("An exception occurred:")
             print(e)
