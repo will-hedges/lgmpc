@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# mouseprofile.py - a Python class representing a set of settings/profile
+#   for a Logitech G mouse
 
 import re
 import requests

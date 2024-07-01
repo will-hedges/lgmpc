@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# utils.py - helper function module
+# utils.py - helper function module for lgmpm.py
 
 import argparse
 import re
