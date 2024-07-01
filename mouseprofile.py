@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# mouseprofile.py - a Python class representing a set of settings/profile
+#   for a Logitech G mouse
 
 import re
 import requests
@@ -200,13 +202,3 @@ class MouseProfile:
                     if prop == "brightness" and val == 255:
                         led_str += " (max)"
                     print(led_str)
-
-
-def main():
-    mp = MouseProfile()
-    mp.run()
-    return
-
-
-if __name__ == "__main__":
-    main()
