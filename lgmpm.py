@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# lgmpm.py - Logitech G Mouse Profile Manager
-#   a script to manage and cycle profiles for Logitech G mice with ratbagctl
+# lgmpm.py - Logitech G Mouse Profile Manager - manages profiles for Logitech G
+#   mice with ratbagctl
 
 import sys
 
