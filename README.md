@@ -3,7 +3,7 @@ A simple command-line tool for managing profiles for Logitech G mice on Linux
 
 ## Introduction
 As more gamers move to Linux, `ratbagctl` and [Piper](https://github.com/libratbag/piper) are great FOSS replacements for Logitech Gaming Software, etc. 
-However, LGS manages profiles very well at the software level while [storing and loading profiles with Piper is not supported for some mice.](https://github.com/libratbag/piper/issues/631)
+However, LGS manages profiles very well at the software level while [storing and loading profiles with Piper is not supported for some mice due to hardware limitations.](https://github.com/libratbag/piper/issues/631)
 
 This pure Python project aims to replace some of the profiling capabilities you may be missing.
 
