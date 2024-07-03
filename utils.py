@@ -98,10 +98,17 @@ def mouse_arg_parser():
 
 
 def print_list_msg():
+    """
+    Prints instructions for showing a list of all saved profiles for the
+        currently connected mouse
+    """
     print("See 'lgmpm.py --list' for a list of saved profiles")
     return
 
 
 def print_help_msg():
+    """
+    Prints instructions for displaying the available arg parser commands
+    """
     print("See 'lgmpm.py --help' for help")
     return

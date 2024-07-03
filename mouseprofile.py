@@ -22,30 +22,34 @@ def color_hex_to_desc(color_hex):
 
 class MouseProfile:
     """
-    TODO
+    A class representing a group of saved settings for a gaming mouse
+
         Attrs:
-            name (str): the name of the profile, ex. "Default" or "Hades"
-            report_rate (int): polling rate, in Hz
-            resolutions (list(int)): list of DPI resolutions to set
-            default_resolution (int): index of the default DPI
+            name (str): the name of the profile, ex. "default" or "hades"
+            report_rate (int): polling rate, in hz
+            resolutions (list(int)): list of dpi resolutions to set
+            default_resolution (int): index of the default dpi within self.resolutions
             buttons (list(str)): list of all the buttons and macros
             leds (list(dict)): list of dicts containing led properties
     """
 
     def __init__(self, name="default", attrs={}):
+        """
+        Sets up the MouseProfile, either with passed attrs or from current state
+            Params:
+                name (str): the name of the profile to create
+                attrs (dict): a dictionary with the settings to keep
+        """
         # if the user doesn't pass the attrs dict, get all of it from ratbagctl
         if attrs == {}:
             self.name = name
             # NOTE don't set device as an attr because we don't want it in MouseProfile.__dict__
             device = get_mouse_alias_and_model()[0]
             # generate attrs using the current mouse settings
-            # TODO get the mouse button count
-            btn_ct = int(get_bash_stdout(f"ratbagctl {device} button count"))
-
             # start with polling rate
             self.report_rate = int(get_bash_stdout(f"ratbagctl {device} rate get"))
 
-            # iterate over all the set resolutions and get them into a list
+            # iterate over all the set resolutions and put them into a list
             self.resolutions = []
             res_idx = 0
             res_re = re.compile(r"\d:\s(\d{,5})dpi.*")
@@ -69,6 +73,7 @@ class MouseProfile:
             # iterate over all the set buttons and get them into a list
             #   use .replace() to get 'command-ified' keypresses
             #       NOTE macro waits are written like 't300' (wait 300ms)
+            btn_ct = int(get_bash_stdout(f"ratbagctl {device} button count"))
             self.buttons = []
             btn_re = re.compile(r".*'(.*)'.*")
             for i in range(btn_ct):
@@ -119,6 +124,9 @@ class MouseProfile:
         return
 
     def run(self):
+        """
+        Writes the profile data to the connected mouse
+        """
         device, model = get_mouse_alias_and_model()
 
         commands = []
@@ -171,6 +179,9 @@ class MouseProfile:
         return
 
     def show(self):
+        """
+        Displays profile data similar to the output of 'ratbagctl {alias} info'
+        """
         print(f"Profile: {self.name}")
         print(f"  Polling rate: {self.report_rate} Hz")
         print(f"  Resolutions:")
