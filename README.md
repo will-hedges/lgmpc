@@ -46,7 +46,7 @@ For a list of available commands, run the program with the `--help` or `-h` flag
       -c, --cycle   cycle (up) to the next stored profile, if one exists
       -d, --delete  delete <profile_name>
       -l, --list    list all saved profiles for the connected mouse
-      -n, --new     create a new profile with called <profile_name>
+      -n, --new     create a new profile called <profile_name>
       -s, --show    show the saved settings for <profile_name>
       -u, --update  update <profile_name> with the current mouse settings
 
